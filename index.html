@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Goa Transit Explorer — Ferry & Bus Timetable + Trip Planner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Offline / Cache Status Banner -->
+  <div id="status-banner" class="status-banner online" role="status" aria-live="polite">
+    <div class="container banner-inner">
+      <span id="network-indicator" class="badge badge-online">● Online</span>
+      <span id="cache-timestamp">Timetable cached: Just now</span>
+      <button id="simulate-offline-btn" class="btn-link" title="Toggle simulated offline mode for testing">
+        Simulate Offline
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">⛴️🚌</span>
+        <div>
+          <h1>Goa Transit Explorer</h1>
+          <p class="subtitle">KTCL Buses, Private Shuttles & River Navigation Ferries</p>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="Primary Navigation">
+        <button class="nav-tab active" data-tab="search-tab">Route Search</button>
+        <button class="nav-tab" data-tab="planner-tab">Multi-Leg Planner</button>
+        <button class="nav-tab" data-tab="timetables-tab">All Timetables</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Active Service Alerts Strip -->
+  <section class="alerts-section container" aria-label="Service Alerts">
+    <div id="global-alerts-container" class="alerts-grid"></div>
+  </section>
+
+  <!-- Main Workspace -->
+  <main class="container main-layout">
+    <!-- Left Column: Interactive Views -->
+    <div class="primary-column">
+      
+      <!-- TAB 1: ROUTE SEARCH -->
+      <section id="search-tab" class="tab-panel active">
+        <div class="card search-card">
+          <h2>Find Next Bus or Ferry</h2>
+          <form id="route-search-form" class="search-grid">
+            <div class="form-group">
+              <label for="search-from">From</label>
+              <select id="search-from" required></select>
+            </div>
+
+            <div class="swap-col">
+              <button type="button" id="swap-locations-btn" class="btn-icon" title="Swap origin and destination" aria-label="Swap origin and destination">⇄</button>
+            </div>
+
+            <div class="form-group">
+              <label for="search-to">To</label>
+              <select id="search-to" required></select>
+            </div>
+
+            <div class="form-group">
+              <label for="search-date">Date</label>
+              <input type="date" id="search-date" required />
+            </div>
+
+            <div class="form-group">
+              <label for="search-time">Earliest Departure</label>
+              <input type="time" id="search-time" required />
+            </div>
+
+            <div class="form-group form-action">
+              <button type="submit" class="btn btn-primary">Search Departures</button>
+            </div>
+          </form>
+
+          <!-- Recent Searches -->
+          <div id="recent-searches-wrapper" class="recent-searches hidden">
+            <span class="muted-label">Recent:</span>
+            <div id="recent-searches-list" class="chip-list"></div>
+          </div>
+        </div>
+
+        <!-- Results Controls -->
+        <div class="results-header">
+          <div>
+            <h3 id="results-summary">Upcoming Departures</h3>
+            <p id="results-day-badge" class="muted-text"></p>
+          </div>
+          <div class="sort-controls">
+            <label for="sort-select">Sort by:</label>
+            <select id="sort-select">
+              <option value="departure">Departure Time (Earliest)</option>
+              <option value="fare">Fare (Lowest)</option>
+              <option value="duration">Duration (Fastest)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search Results Container -->
+        <div id="search-results-list" class="results-list"></div>
+      </section>
+
+      <!-- TAB 2: MULTI-LEG TRIP PLANNER -->
+      <section id="planner-tab" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Multi-Leg Trip Planner (Up to 3 Legs)</h2>
+              <p class="muted-text">Combine buses, river ferries, and short walks with automatic transfer & waiting time calculation.</p>
+            </div>
+            <button type="button" id="load-sample-trip-btn" class="btn btn-secondary">Load Sample: Calangute → Divar Island</button>
+          </div>
+
+          <form id="trip-planner-form" class="planner-form">
+            <div class="planner-meta-row">
+              <div class="form-group">
+                <label for="planner-date">Travel Date</label>
+                <input type="date" id="planner-date" required />
+              </div>
+              <div class="form-group">
+                <label for="planner-start-time">Start Time</label>
+                <input type="time" id="planner-start-time" value="09:00" required />
+              </div>
+              <div class="form-group">
+                <label for="planner-origin">Origin</label>
+                <select id="planner-origin" required></select>
+              </div>
+              <div class="form-group">
+                <label for="planner-dest">Final Destination</label>
+                <select id="planner-dest" required></select>
+              </div>
+            </div>
+
+            <div id="planner-legs-container" class="legs-builder"></div>
+
+            <div class="planner-actions">
+              <button type="button" id="add-leg-btn" class="btn btn-outline">+ Add Connecting Leg (Max 3)</button>
+              <button type="submit" class="btn btn-primary">Calculate Complete Itinerary</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Computed Multi-Leg Itinerary Output -->
+        <div id="itinerary-output" class="itinerary-output"></div>
+      </section>
+
+      <!-- TAB 3: FULL TIMETABLE VIEW -->
+      <section id="timetables-tab" class="tab-panel">
+        <div class="card">
+          <div class="timetable-toolbar">
+            <div class="form-group">
+              <label for="timetable-route-select">Select Route</label>
+              <select id="timetable-route-select"></select>
+            </div>
+
+            <div class="day-filter-group" role="group" aria-label="Schedule Day Type">
+              <button type="button" class="day-btn active" data-daytype="weekday">Weekday (Mon–Fri)</button>
+              <button type="button" class="day-btn" data-daytype="saturday">Saturday</button>
+              <button type="button" class="day-btn" data-daytype="sunday">Sunday / Holiday</button>
+            </div>
+
+            <button type="button" id="print-timetable-btn" class="btn btn-secondary no-print">🖨️ Print Timetable</button>
+          </div>
+
+          <div id="full-timetable-display" class="timetable-sheet"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Sidebar: Live Stop Board & Favourites -->
+    <aside class="sidebar-column no-print">
+      <!-- Live Next-Departure Board -->
+      <div class="card live-board-card">
+        <div class="live-header">
+          <span class="pulse-dot"></span>
+          <h3>Live Stop Departures</h3>
+        </div>
+        <div class="form-group">
+          <label for="live-stop-select" class="sr-only">Choose Stop</label>
+          <select id="live-stop-select"></select>
+        </div>
+        <p id="live-clock-label" class="muted-text small-text"></p>
+        <div id="live-departures-list" class="live-list"></div>
+      </div>
+
+      <!-- Saved Favourite Routes -->
+      <div class="card favourites-card">
+        <h3>★ Saved Favourite Routes</h3>
+        <p class="muted-text small-text">Favourites are pinned to the top of search results.</p>
+        <div id="favourites-list" class="favourites-list"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="app-footer no-print">
+    <div class="container">
+      <p>Goa Transit Explorer · Data includes Kadamba Transport Corp (KTCL), Local Stage Carriages & Goa River Navigation Dept.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
